@@ -1,7 +1,7 @@
 import os
 import uuid
 from typing import Optional
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
@@ -13,15 +13,15 @@ class DocumentStore:
     uploads/queries in a session) but clear on restart/reload — that's fine,
     since only chat memory needs to survive restarts here"""
 
-    def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 150):
+    def __init__(self, chunk_size: int = 1000,persist_dir: str = "./chroma_db", chunk_overlap: int = 150):
         self.embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-        self.vectorstore = Chroma(embedding_function=self.embeddings)
+        self.vectorstore = Chroma(persist_directory=persist_dir,embedding_function=self.embeddings,)
         self.splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size,chunk_overlap=chunk_overlap)
     def ingest(self, file_path:str, user_id:str, filename:str )-> str:
         """Loads a pdf, split vit, embed each chunk, and stores it. Returns doc_id so this file can be referenced/queried/deleted lated."""
 
         doc_id = str(uuid.uuid4())
-        pages = PyPDFLoader(file_path).load()
+        pages = PyMuPDFLoader(file_path).load()
         chunks = self.splitter.split_documents(pages)
 
         for chunk in chunks:
