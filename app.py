@@ -3,7 +3,7 @@ import requests
 import streamlit as st
 
 # Replace with your actual deployed FastAPI URL once you have it
-API_URL = "https://agentic-research-assistance-u7fm.onrender.com"
+API_URL = "https://agentic-research-api-e4si.onrender.com/"
 
 st.set_page_config(page_title="AI Research Assistant", layout="wide")
 st.title("AI Research Assistant")
