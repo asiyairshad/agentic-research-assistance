@@ -1,14 +1,11 @@
 import uuid
-import tempfile
+import requests
 import streamlit as st
-from dotenv import load_dotenv
 
-load_dotenv()
+# Replace with your actual deployed FastAPI URL once you have it
+API_URL = "https://agentic-research-assistance-u7fm.onrender.com"
 
-from pdf_ingest import get_store
-from graph import graph 
-
-st.set_page_config(page_title="AI Research Assistant", layout = "wide")
+st.set_page_config(page_title="AI Research Assistant", layout="wide")
 st.title("AI Research Assistant")
 
 # ── session state: stable user_id/session_id per browser session ──────
@@ -19,9 +16,7 @@ if "session_id" not in st.session_state:
 if "doc_id" not in st.session_state:
     st.session_state.doc_id = None
 if "messages" not in st.session_state:
-    st.session_state.messages = []  # [(role, text), ...] for display only
-
-store = get_store()
+    st.session_state.messages = []
 
 # ── sidebar: upload ─────────────────────────────────────────────────
 with st.sidebar:
@@ -31,17 +26,24 @@ with st.sidebar:
     if uploaded_file is not None:
         if st.button("Ingest document"):
             with st.spinner("Processing document..."):
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                    tmp.write(uploaded_file.getvalue())
-                    tmp_path = tmp.name
+                files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")}
+                data = {"user_id": st.session_state.user_id}
+                resp = requests.post(f"{API_URL}/upload", files=files, data=data)
 
-                doc_id = store.ingest(tmp_path, user_id=st.session_state.user_id, filename=uploaded_file.name)
-                st.session_state.doc_id = doc_id
-            st.success(f"Ingested: {uploaded_file.name}")
+                if resp.status_code == 200:
+                    st.session_state.doc_id = resp.json()["doc_id"]
+                    st.success(f"Ingested: {uploaded_file.name}")
+                else:
+                    st.error(f"Upload failed: {resp.text}")
 
     st.divider()
     st.subheader("Your documents")
-    docs = store.list_user_docs(st.session_state.user_id)
+    try:
+        docs_resp = requests.get(f"{API_URL}/documents/{st.session_state.user_id}")
+        docs = docs_resp.json().get("documents", []) if docs_resp.status_code == 200 else []
+    except requests.exceptions.RequestException:
+        docs = []
+
     if docs:
         for d in docs:
             st.write(f"📄 {d['filename']}")
@@ -62,15 +64,18 @@ if query:
 
     with st.chat_message("assistant"):
         with st.spinner("Researching..."):
-            result = graph.invoke({
+            resp = requests.post(f"{API_URL}/query", json={
                 "query": query,
                 "user_id": st.session_state.user_id,
                 "session_id": st.session_state.session_id,
                 "doc_id": st.session_state.doc_id,
-            },
-            config={"configurable":{"thread_id": st.session_state.session_id}}
-            )
-            answer = result["final_report"]
+            })
+
+            if resp.status_code == 200:
+                answer = resp.json()["final_report"]
+            else:
+                answer = f"Error: {resp.text}"
+
         st.markdown(answer)
 
     st.session_state.messages.append(("assistant", answer))
