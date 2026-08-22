@@ -78,8 +78,12 @@ Decide which tool(s) are relevant to answer this question and call them."""
                 args.setdefault("user_id", state["user_id"])
                 args.setdefault("doc_id", state.get("doc_id"))
 
-            result = tool_fn.invoke(args)
-            new_results.extend(result or [])
+            try:
+                result = tool_fn.invoke(args)
+                new_results.extend(result or [])
+            except Exception as e:
+                print(f"Tool {tool_call['name']} failed: {e}")
+                continue
 
     all_results = state.get("search_results", []) + new_results
 

@@ -109,7 +109,7 @@ def search_arxiv(query: str, max_results: int = 5) -> list[dict]:
         "start": 0,
         "max_results": max_results,
     }
-    response = requests.get(ARXIV_API_URL, params=params, timeout=10)
+    response = requests.get(ARXIV_API_URL, params=params, timeout=20)
     response.raise_for_status()
 
     feed = feedparser.parse(response.text)
